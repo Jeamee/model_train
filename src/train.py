@@ -419,7 +419,13 @@ class FeedbackModel(tez.Model):
             logits5 = self.output(self.dropout5(sequence_output))
             logits = (logits1 + logits2 + logits3 + logits4 + logits5) / 5
         elif self.decoder == "crf":
-            logits = self.output(self.dropout2(sequence_output))
+            sequence_output1 = self.dropout1(sequence_output)
+            sequence_output2 = self.dropout2(sequence_output)
+            sequence_output3 = self.dropout3(sequence_output)
+            sequence_output4 = self.dropout4(sequence_output)
+            sequence_output5 = self.dropout5(sequence_output)
+            sequence_output = (sequence_output1 + sequence_output2 + sequence_output3 +sequence_output4 + sequence_output5) / 5
+            logits = self.output(sequence_output)
         elif self.decoder == "span":
             sequence_output1 = self.dropout1(sequence_output)
             sequence_output2 = self.dropout2(sequence_output)
@@ -521,7 +527,7 @@ if __name__ == "__main__":
     seed_everything(43)
     set_log(args.log)
     os.makedirs(args.output, exist_ok=True)
-    df = pd.read_csv(os.path.join(args.input, "train_folds.csv"))
+    df = pd.read_csv(os.path.join(args.input, "train_folds10.csv"))
 
     train_df = df[df["kfold"] != args.fold].reset_index(drop=True)
     valid_df = df[df["kfold"] == args.fold].reset_index(drop=True)
