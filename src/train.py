@@ -343,7 +343,7 @@ class FeedbackModel(tez.Model):
     
     def fetch_scheduler(self):
         if self.finetune:
-            min_lr = [1e-7, 1e-7, 1e-8, 1e-8, 1e-8, 1e-8]
+            min_lr = [1e-6, 1e-6, 1e-8, 1e-8, 5e-7, 5e-7]
             patience = 30
         else:
             min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8]
