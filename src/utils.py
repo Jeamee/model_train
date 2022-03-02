@@ -16,6 +16,7 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
 from torch.optim import Optimizer
 from torch._six import inf
+from torch.nn.utils.rnn import pad_sequence
 
 
 target_id_map = {
@@ -382,26 +383,39 @@ class Collate:
 
     def __call__(self, batch):
         output = dict()
-        output["ids"] = [sample["ids"] for sample in batch]
-        output["mask"] = [sample["mask"] for sample in batch]
+        output["ids"] = pad_sequence([sample["ids"] for sample in batch], batch_first=True)
+        output["mask"] = pad_sequence([sample["mask"] for sample in batch], batch_first=True)
 
         # calculate max token length of this batch
-        batch_max = max([len(ids) for ids in output["ids"]])
+        #batch_max = max([len(ids) for ids in output["ids"]])
 
         # add padding
         #if self.tokenizer.padding_side == "right":
-        output["ids"] = [s + (batch_max - len(s)) * [self.tokenizer.pad_token_id] for s in output["ids"]]
-        output["mask"] = [s + (batch_max - len(s)) * [0] for s in output["mask"]]
+        #output["ids"] = [s + (batch_max - len(s)) * [self.tokenizer.pad_token_id] for s in output["ids"]]
+        #output["mask"] = [s + (batch_max - len(s)) * [0] for s in output["mask"]]
         #else:
         #    output["ids"] = [(batch_max - len(s)) * [self.tokenizer.pad_token_id] + s for s in output["ids"]]
         #   output["mask"] = [(batch_max - len(s)) * [0] + s for s in output["mask"]]
 
         # convert to tensors
-        output["ids"] = torch.tensor(output["ids"], dtype=torch.long)
-        output["mask"] = torch.tensor(output["mask"], dtype=torch.long)
+        #output["ids"] = torch.tensor(output["ids"], dtype=torch.long)
+        #output["mask"] = torch.tensor(output["mask"], dtype=torch.long)
 
         return output
 
+class Freeze(Callback):
+    def __init__(self):
+        self.done = False
+        
+    def on_epoch_end(self, model):
+        if self.done:
+            return
+        
+        logging.info("freeze crf and linear layer")
+        for params in model.optimizer_grouped_parameters[1:]:
+            params = params["params"]
+            for param in params:
+                param.requires_grad = False
 
 class EarlyStopping(Callback):
     def __init__(

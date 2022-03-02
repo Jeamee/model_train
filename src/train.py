@@ -46,11 +46,12 @@ from torch.nn.parameter import Parameter
 from torch.nn import functional as F
 from transformers import AdamW, AutoConfig, AutoModel, AutoTokenizer, get_cosine_schedule_with_warmup
 from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV2TokenizerFast
+from torch.nn.utils.rnn import pad_sequence
 from torchcrf import CRF
 
 
 from utils import EarlyStopping, prepare_training_data, target_id_map, id_target_map, span_target_id_map, span_id_target_map, GradualWarmupScheduler, ReduceLROnPlateau, span_decode
-from utils import biaffine_decode
+from utils import biaffine_decode, Freeze
 from dice_loss import DiceLoss
 from focal_loss import FocalLoss
 from sce import SCELoss
@@ -100,13 +101,14 @@ def parse_args():
 
 
 class FeedbackDataset:
-    def __init__(self, samples, max_len, tokenizer, use4span=False, use4biaf=False, use4bb=False):
+    def __init__(self, samples, max_len, tokenizer, use4span=False, use4biaf=False, use4bb=False, use4lf=False):
         self.samples = samples
         self.max_len = max_len
         self.tokenizer = tokenizer
         self.length = len(samples)
         self.use4span = use4span
         self.use4biaf = use4biaf
+        self.use4lf = use4lf
         #self.tokenizer.padding_side = "right"
         
         self._init()
@@ -175,6 +177,9 @@ class FeedbackDataset:
                 
                 targets = [torch.tensor(input_labels, dtype=torch.long), torch.tensor(start_labels, dtype=torch.long).contiguous(), torch.tensor(end_labels, dtype=torch.long)]
             
+            if self.use4lf:
+                pad_length = ceil(len(attention_mask) / 512) * 512 - len(attention_mask)
+                attention_mask.attend([0] * pad_length)
             
             sample = {
                 "ids": torch.tensor(input_ids, dtype=torch.long),
@@ -320,7 +325,7 @@ class FeedbackModel(tez.Model):
                 
         crf_lf = 1e-5 if self.finetune else 1e-2
 
-        optimizer_grouped_parameters = [
+        self.optimizer_grouped_parameters = [
             {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay)],
              "weight_decay": 0.01, 'lr': self.transformer_learning_rate},
             {"params": [p for n, p in lonformer_param_optimizer if any(nd in n for nd in no_decay)],
@@ -337,11 +342,15 @@ class FeedbackModel(tez.Model):
             {"params": [p for n, p in other_param_optimizer if any(nd in n for nd in no_decay)],
              "weight_decay": 0.0, 'lr': self.other_learning_rate},
         ]
-
-        opt = AdamW(optimizer_grouped_parameters, lr=self.transformer_learning_rate)
+        
+        
+        opt = AdamW(self.optimizer_grouped_parameters, lr=self.transformer_learning_rate)
         return opt
     
     def fetch_scheduler(self):
+        #TODO 
+        get_cosine_schedule_with_warmup
+        
         if self.finetune:
             min_lr = [1e-6, 1e-6, 1e-8, 1e-8, 1e-8, 1e-8]
             patience = 30
@@ -405,10 +414,6 @@ class FeedbackModel(tez.Model):
             transformer_out = self.transformer(ids, mask, token_type_ids, output_hidden_states=self.dynamic_merge_layers)
         else:
             transformer_out = self.transformer(ids, mask, output_hidden_states=self.dynamic_merge_layers)
-        
-        if self.decoder == "crf" and transformer_out.last_hidden_state.shape[1] != ids.shape[1]:
-            mask_add = torch.zeros((mask.shape[0],  transformer_out.hidden_states[-1].shape[1] - ids.shape[1])).to(mask.device)
-            mask = torch.cat((mask, mask_add), dim=-1)
             
         if self.dynamic_merge_layers:
             layers_output = torch.cat([torch.unsqueeze(layer, 2) for layer in transformer_out.hidden_states[self.merge_layers_num:]], dim=2)
@@ -550,7 +555,14 @@ if __name__ == "__main__":
     training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS)
     valid_samples = prepare_training_data(valid_df, tokenizer, args, num_jobs=NUM_JOBS)
 
-    train_dataset = FeedbackDataset(training_samples, args.max_len, tokenizer, use4span=args.decoder == "span", use4biaf=args.decoder == "biaffine")
+    train_dataset = FeedbackDataset(
+        training_samples,
+        args.max_len,
+        tokenizer,
+        use4span=args.decoder == "span",
+        use4biaf=args.decoder == "biaffine",
+        use4lf=args.model == "allenai/longformer-large-4096"
+    )
 
     num_train_steps = int(len(train_dataset) / args.batch_size / args.accumulation_steps * args.epochs)
     
@@ -582,6 +594,7 @@ if __name__ == "__main__":
         model.load(args.ckpt, weights_only=True)
         logging.info(f"{args.ckpt}")
     
+    freeze = Freeze()
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
     es = EarlyStopping(
         model_path=os.path.join(args.output, f"model_{args.fold}.bin"),
@@ -601,7 +614,7 @@ if __name__ == "__main__":
         train_bs=args.batch_size,
         device="cuda",
         epochs=args.epochs,
-        callbacks=[tb_logger, es],
+        callbacks=[tb_logger, es, freeze],
         fp16=True,
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
