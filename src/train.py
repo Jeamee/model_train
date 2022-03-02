@@ -77,6 +77,7 @@ def parse_args():
     parser.add_argument("--dynamic_merge_layers", action="store_true", required=False)
     parser.add_argument("--merge_layers_num", type=int, default=-2, required=False)
     parser.add_argument("--attack", action="store_true", required=False)
+    parser.add_argument("--finetune", action="store_true", required=False)
     parser.add_argument("--log_loss", action="store_true", required=False)
     parser.add_argument("--step_scheduler_metric", default="train_f1", type=str, required=False)
     parser.add_argument("--output", type=str, default="../model", required=False)
@@ -229,7 +230,8 @@ class FeedbackModel(tez.Model):
         max_len=4096,
         merge_layers_num=-2,
         log_loss=False,
-        warmup_ratio=0.1
+        warmup_ratio=0.1,
+        finetune=False
     ):
         super().__init__()
         self.cur_step = 0
@@ -248,6 +250,7 @@ class FeedbackModel(tez.Model):
         self.decoder = decoder
         self.log_loss=log_loss
         self.warmup_ratio = warmup_ratio
+        self.finetune = finetune
         self.step_scheduler_after = "batch"
 
         hidden_dropout_prob: float = 0.1
@@ -314,6 +317,8 @@ class FeedbackModel(tez.Model):
                 crf_param_optimizer.append((name, para))
             else:
                 other_param_optimizer.append((name, para))
+                
+        crf_lf = 0.000001 if self.finetune else 0.01
 
         optimizer_grouped_parameters = [
             {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay)],
@@ -337,11 +342,18 @@ class FeedbackModel(tez.Model):
         return opt
     
     def fetch_scheduler(self):
+        if self.finetune:
+            min_lr = [1e-7, 1e-7, 1e-8, 1e-8, 1e-8, 1e-8]
+            patience = 30
+        else:
+            min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8]
+            patience = 10
+        
         tmp_sch = ReduceLROnPlateau(
             self.optimizer,
             mode='max',
-            patience=10,
-            min_lr=[1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8],
+            patience=patience,
+            min_lr=min_lr,
             verbose=True
         )
         
@@ -562,7 +574,8 @@ if __name__ == "__main__":
         label_smooth=args.label_smooth,
         decoder=args.decoder,
         log_loss=args.log_loss,
-        warmup_ratio=args.warmup_ratio
+        warmup_ratio=args.warmup_ratio,
+        finetune=args.finetune
     )
     
     if args.ckpt:
