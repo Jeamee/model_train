@@ -8,3 +8,44 @@ Lock 140387843553040 acquired on /root/.cache/huggingface/transformers/5a3823dd1
 Lock 140387843553040 released on /root/.cache/huggingface/transformers/5a3823dd1f4f97efc0b6ba7bad6644f43058f566ae858e0eda0f01e3d3510b23.fc9576039592f026ad76a1c231b89aee8668488c671dfbe6616bab2ed298d730.lock
 Lock 140386730088784 acquired on /root/.cache/huggingface/transformers/d0ea2f82fbdf49f7e3446b4d36771be0658bc3929ef0567a4dfd9c118b47ee4e.3b44f0fbdab9a8775aacdf3689d9478016a26e96e375731fbd26c9e732cf9356.lock
 Lock 140386730088784 released on /root/.cache/huggingface/transformers/d0ea2f82fbdf49f7e3446b4d36771be0658bc3929ef0567a4dfd9c118b47ee4e.3b44f0fbdab9a8775aacdf3689d9478016a26e96e375731fbd26c9e732cf9356.lock
+Epoch    23: reducing learning rate of group 0 to 1.0000e-05.
+Epoch    23: reducing learning rate of group 1 to 1.0000e-05.
+Epoch    23: reducing learning rate of group 2 to 1.1000e-03.
+Epoch    23: reducing learning rate of group 3 to 1.1000e-03.
+Epoch    23: reducing learning rate of group 4 to 1.1000e-04.
+Epoch    23: reducing learning rate of group 5 to 1.1000e-04.
+Epoch    34: reducing learning rate of group 2 to 1.1000e-04.
+Epoch    34: reducing learning rate of group 3 to 1.1000e-04.
+Epoch    34: reducing learning rate of group 4 to 1.1000e-05.
+Epoch    34: reducing learning rate of group 5 to 1.1000e-05.
+Epoch    45: reducing learning rate of group 2 to 1.1000e-05.
+Epoch    45: reducing learning rate of group 3 to 1.1000e-05.
+Epoch    45: reducing learning rate of group 4 to 1.1000e-06.
+Epoch    45: reducing learning rate of group 5 to 1.1000e-06.
+Epoch    56: reducing learning rate of group 2 to 1.1000e-06.
+Epoch    56: reducing learning rate of group 3 to 1.1000e-06.
+Epoch    56: reducing learning rate of group 4 to 1.1000e-07.
+Epoch    56: reducing learning rate of group 5 to 1.1000e-07.
+Epoch    67: reducing learning rate of group 2 to 1.1000e-07.
+Epoch    67: reducing learning rate of group 3 to 1.1000e-07.
+Epoch    67: reducing learning rate of group 4 to 1.1000e-08.
+Epoch    67: reducing learning rate of group 5 to 1.1000e-08.
+Epoch    78: reducing learning rate of group 2 to 1.1000e-08.
+Epoch    78: reducing learning rate of group 3 to 1.1000e-08.
+epoch 0 total:(0.6340322725988068, {'Claim': 0.6295155993431856, 'Concluding Statement': 0.7961165048543689, 'Counterclaim': 0.5067466266866567, 'Evidence': 0.7139318155007668, 'Lead': 0.7979643765903308, 'Position': 0.6639061421670117, 'Rebuttal': 0.33004484304932735})
+Validation score changed (-inf --> 0.6340322725988068). Saving model!
+Best performence is epoch 0: 0.6340322725988068
+epoch 1 total:(0.664315786760065, {'Claim': 0.6381387619443291, 'Concluding Statement': 0.7814569536423841, 'Counterclaim': 0.5437616387337058, 'Evidence': 0.7336694677871148, 'Lead': 0.8358050847457628, 'Position': 0.6876066917036531, 'Rebuttal': 0.4297719087635054})
+Validation score changed (0.6340322725988068 --> 0.664315786760065). Saving model!
+Best performence is epoch 1: 0.664315786760065
+epoch 2 total:(0.6599953137116698, {'Claim': 0.6432964329643296, 'Concluding Statement': 0.764063811922754, 'Counterclaim': 0.5299625468164794, 'Evidence': 0.7100840336134454, 'Lead': 0.8226059654631083, 'Position': 0.6997603560424512, 'Rebuttal': 0.4501940491591203})
+epoch 2 EarlyStopping counter: 1 out of 5
+Validation score changed (0.664315786760065 --> 0.6599953137116698). Saving model!
+Best performence is epoch 1: 0.664315786760065
+epoch 3 total:(0.6621786619164898, {'Claim': 0.6449011702232275, 'Concluding Statement': 0.7924980047885076, 'Counterclaim': 0.5363924050632911, 'Evidence': 0.7381631488876212, 'Lead': 0.816435432230523, 'Position': 0.6873773708306082, 'Rebuttal': 0.4194831013916501})
+epoch 3 EarlyStopping counter: 2 out of 5
+Validation score changed (0.6599953137116698 --> 0.6621786619164898). Saving model!
+Best performence is epoch 1: 0.664315786760065
+epoch 4 total:(0.6799054473406337, {'Claim': 0.6562562562562563, 'Concluding Statement': 0.8109854604200323, 'Counterclaim': 0.5648414985590778, 'Evidence': 0.7433185488456727, 'Lead': 0.816793893129771, 'Position': 0.70073931211829, 'Rebuttal': 0.466403162055336})
+Validation score changed (0.6621786619164898 --> 0.6799054473406337). Saving model!
+Best performence is epoch 4: 0.6799054473406337
