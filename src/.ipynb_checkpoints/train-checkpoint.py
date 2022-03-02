@@ -318,7 +318,7 @@ class FeedbackModel(tez.Model):
             else:
                 other_param_optimizer.append((name, para))
                 
-        crf_lf = 0.000001 if self.finetune else 0.01
+        crf_lf = 1e-6 if self.finetune else 1e-2
 
         optimizer_grouped_parameters = [
             {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay)],
@@ -343,7 +343,7 @@ class FeedbackModel(tez.Model):
     
     def fetch_scheduler(self):
         if self.finetune:
-            min_lr = [1e-6, 1e-6, 1e-8, 1e-8, 5e-7, 5e-7]
+            min_lr = [1e-6, 1e-6, 1e-8, 1e-8, 1e-8, 1e-8]
             patience = 30
         else:
             min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8]
