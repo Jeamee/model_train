@@ -46,7 +46,6 @@ from torch.nn.parameter import Parameter
 from torch.nn import functional as F
 from transformers import AdamW, AutoConfig, AutoModel, AutoTokenizer, get_cosine_schedule_with_warmup
 from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV2TokenizerFast
-from torch.nn.utils.rnn import pad_sequence
 from torchcrf import CRF
 
 
@@ -348,32 +347,15 @@ class FeedbackModel(tez.Model):
         return opt
     
     def fetch_scheduler(self):
-        #TODO 
-        get_cosine_schedule_with_warmup
-        
-        if self.finetune:
-            min_lr = [1e-6, 1e-6, 1e-8, 1e-8, 1e-8, 1e-8]
-            patience = 30
-        else:
-            min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8]
-            patience = 10
-        
-        tmp_sch = ReduceLROnPlateau(
+        sch = get_cosine_schedule_with_warmup(
             self.optimizer,
-            mode='max',
-            patience=patience,
-            min_lr=min_lr,
-            verbose=True
+            num_warmup_steps=int(0.1 * self.num_train_steps),
+            num_training_steps=self.num_train_steps,
+            num_cycles=1,
+            last_epoch=-1,
         )
-        
-        sch = GradualWarmupScheduler(
-            self.optimizer,
-            multiplier=1.1,
-            warmup_epoch=int(self.warmup_ratio * self.num_train_steps) ,
-            total_epoch=self.num_train_steps,
-            after_scheduler=tmp_sch)
-        
         return sch
+        
 
     def loss(self, outputs, targets, attention_mask):
         outputs = outputs.contiguous()

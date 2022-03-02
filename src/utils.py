@@ -412,10 +412,12 @@ class Freeze(Callback):
             return
         
         logging.info("freeze crf and linear layer")
+        self.done = True
         for params in model.optimizer_grouped_parameters[1:]:
             params = params["params"]
             for param in params:
                 param.requires_grad = False
+
 
 class EarlyStopping(Callback):
     def __init__(
