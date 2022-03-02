@@ -49,3 +49,11 @@ Best performence is epoch 1: 0.664315786760065
 epoch 4 total:(0.6799054473406337, {'Claim': 0.6562562562562563, 'Concluding Statement': 0.8109854604200323, 'Counterclaim': 0.5648414985590778, 'Evidence': 0.7433185488456727, 'Lead': 0.816793893129771, 'Position': 0.70073931211829, 'Rebuttal': 0.466403162055336})
 Validation score changed (0.6621786619164898 --> 0.6799054473406337). Saving model!
 Best performence is epoch 4: 0.6799054473406337
+epoch 5 total:(0.6531007135600995, {'Claim': 0.6454873646209386, 'Concluding Statement': 0.8269230769230769, 'Counterclaim': 0.49361702127659574, 'Evidence': 0.7266734856233663, 'Lead': 0.787052810902896, 'Position': 0.6875625208402801, 'Rebuttal': 0.4043887147335423})
+epoch 5 EarlyStopping counter: 1 out of 5
+Validation score changed (0.6799054473406337 --> 0.6531007135600995). Saving model!
+Best performence is epoch 4: 0.6799054473406337
+epoch 6 total:(0.6718658156180186, {'Claim': 0.6391313604428358, 'Concluding Statement': 0.8169236852510874, 'Counterclaim': 0.5371530886302597, 'Evidence': 0.7406296851574213, 'Lead': 0.8190981432360742, 'Position': 0.7014824797843666, 'Rebuttal': 0.448642266824085})
+epoch 6 EarlyStopping counter: 2 out of 5
+Validation score changed (0.6531007135600995 --> 0.6718658156180186). Saving model!
+Best performence is epoch 4: 0.6799054473406337
