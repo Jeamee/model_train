@@ -274,7 +274,7 @@ class FeedbackModel(tez.Model):
         )
         
         if self.model_name in ["microsoft/deberta-v3-large", "uw-madison/yoso-4096"]:
-            config.update({"max_position_embeddings": 4096})
+            config.update({"max_position_embeddings": 1536})
         
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
