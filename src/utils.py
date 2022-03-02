@@ -408,11 +408,12 @@ class Collate:
         return output
 
 class Freeze(Callback):
-    def __init__(self, freeze=False):
-        self.done = freeze
+    def __init__(self, epochs=1):
+        self.count = 0
+        self.thre = epochs
         
     def on_epoch_end(self, model):
-        if self.done:
+        if self.count >= self.thre:
             return
         
         logging.info("freeze crf and linear layer")

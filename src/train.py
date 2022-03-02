@@ -95,6 +95,7 @@ def parse_args():
     parser.add_argument("--sce_alpha", type=float, required=False)
     parser.add_argument("--sce_beta", type=float, required=False)
     parser.add_argument("--decoder", type=str, default="softmax", required=False)
+    parser.add_argument("--freeze", type=int, default=1, required=False)
     return parser.parse_args()
 
 
@@ -573,10 +574,10 @@ if __name__ == "__main__":
     )
     
     if args.ckpt:
-        model.load(args.ckpt, weights_only=True)
+        model.load(args.ckpt, weights_only=True, strict=False)
         logging.info(f"{args.ckpt}")
     
-    freeze = Freeze(freeze=args.finetune)
+    freeze = Freeze(epochs=args.freeze)
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
     es = EarlyStopping(
         model_path=os.path.join(args.output, f"model_{args.fold}.bin"),
