@@ -318,7 +318,7 @@ class FeedbackModel(tez.Model):
             else:
                 other_param_optimizer.append((name, para))
                 
-        crf_lf = 1e-6 if self.finetune else 1e-2
+        crf_lf = 1e-5 if self.finetune else 1e-2
 
         optimizer_grouped_parameters = [
             {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay)],
@@ -327,9 +327,9 @@ class FeedbackModel(tez.Model):
              "weight_decay": 0.0, 'lr': self.transformer_learning_rate},
             
             {"params": [p for n, p in crf_param_optimizer if not any(nd in n for nd in no_decay)],
-             "weight_decay": 0.01, 'lr': 0.01},
+             "weight_decay": 0.01, 'lr': crf_lf},
             {"params": [p for n, p in crf_param_optimizer if any(nd in n for nd in no_decay)],
-             "weight_decay": 0.0, 'lr': 0.01},
+             "weight_decay": 0.0, 'lr': crf_lf},
 
             # 其他模块，差分学习率
             {"params": [p for n, p in other_param_optimizer if not any(nd in n for nd in no_decay)],
