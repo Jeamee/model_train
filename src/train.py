@@ -235,7 +235,7 @@ class FeedbackModel(tez.Model):
         max_len=4096,
         merge_layers_num=-2,
         log_loss=False,
-        warmup_ratio=0.1,
+        warmup_ratio=0.05,
         finetune=False
     ):
         super().__init__()
@@ -348,13 +348,24 @@ class FeedbackModel(tez.Model):
         return opt
     
     def fetch_scheduler(self):
-        sch = get_cosine_schedule_with_warmup(
-            self.optimizer,
-            num_warmup_steps=int(0.1 * self.num_train_steps),
-            num_training_steps=self.num_train_steps,
-            num_cycles=1,
-            last_epoch=-1,
-        )
+        if self.finetune:
+            sch = get_cosine_schedule_with_warmup(
+                self.optimizer,
+                num_warmup_steps=int(self.warmup_ratio * self.num_train_steps),
+                num_training_steps=self.num_train_steps,
+                num_cycles=1,
+                last_epoch=-1,
+            )
+        else:
+            min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8]
+            patience = 10
+
+            sch = GradualWarmupScheduler(
+                self.optimizer,
+                multiplier=1.1,
+                warmup_epoch=int(self.warmup_ratio * self.num_train_steps) ,
+                total_epoch=self.num_train_steps)
+            
         return sch
         
 
