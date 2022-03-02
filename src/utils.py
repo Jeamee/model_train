@@ -334,11 +334,12 @@ def score_feedback_comp(pred_df, gt_df, return_class_scores=False):
 
 
 class FeedbackDatasetValid:
-    def __init__(self, samples, max_len, tokenizer):
+    def __init__(self, samples, max_len, tokenizer, bigbird_padding=False):
         self.samples = samples
         self.max_len = max_len
         self.tokenizer = tokenizer
         self.length = len(samples)
+        self.bigbird_padding = bigbird_padding
         
         self._init()
     
@@ -351,18 +352,14 @@ class FeedbackDatasetValid:
 
             if len(input_ids) > self.max_len - 1:
                 input_ids = input_ids[: self.max_len - 1]
-                attention_mask = attention_mask[: self.max_len - 1]
+                attention_mask = attention_mask[: self.max_len]
             
-            if len(input_ids) < 1023:
-                padding_length = 1023 - len(input_ids)
-            else:
-                padding_length = ceil(len(input_ids) / 64) * 64 - len(input_ids) - 1
-            if padding_length > 0 :
-                input_ids = input_ids + [self.tokenizer.pad_token_id] * padding_length
-                attention_mask = attention_mask + [0] * padding_length
-
             input_ids = input_ids + [self.tokenizer.sep_token_id]
             
+            if self.bigbird_padding and len(input_ids) > 1024:
+                padding_length = ceil(len(input_ids) / 64) * 64 - len(input_ids)
+                input_ids = input_ids + [self.tokenizer.pad_token_id] * padding_length
+                attention_mask = attention_mask + [0] * padding_length
 
             sample = {
                 "ids": input_ids,
@@ -418,7 +415,8 @@ class EarlyStopping(Callback):
         mode="max",
         delta=0.001,
         save_weights_only=True,
-        direct_output=False
+        direct_output=False,
+        bigbird_padding
     ):
         self.patience = patience
         self.counter = 0
@@ -435,6 +433,7 @@ class EarlyStopping(Callback):
         self.valid_df = valid_df
         self.tokenizer = tokenizer
         self.epoch = 0
+        self.bigbird_padding = bigbird_padding
 
         if self.mode == "min":
             self.val_score = np.Inf
@@ -443,7 +442,7 @@ class EarlyStopping(Callback):
 
     def on_epoch_end(self, model):
         model.eval()
-        valid_dataset = FeedbackDatasetValid(self.valid_samples, 4096, self.tokenizer)
+        valid_dataset = FeedbackDatasetValid(self.valid_samples, 4096, self.tokenizer, bigbird_padding=self.bigbird_padding)
         collate = Collate(self.tokenizer)
 
         preds_iter = model.predict(
