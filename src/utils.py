@@ -416,9 +416,10 @@ class Freeze(Callback):
         if self.count >= self.thre:
             return
         
+        
         logging.info("freeze crf and linear layer")
-        self.done = True
-        for params in model.optimizer_grouped_parameters[1:]:
+        self.count += 1
+        for params in model.optimizer_grouped_parameters[2:]:
             params = params["params"]
             for param in params:
                 param.requires_grad = False
