@@ -178,7 +178,7 @@ class FeedbackDataset:
             
             if self.use4lf:
                 pad_length = ceil(len(attention_mask) / 512) * 512 - len(attention_mask)
-                attention_mask.attend([0] * pad_length)
+                attention_mask.extend([0] * pad_length)
             
             sample = {
                 "ids": torch.tensor(input_ids, dtype=torch.long),
@@ -272,8 +272,8 @@ class FeedbackModel(tez.Model):
             }
         )
         
-        if self.model_name == "microsoft/deberta-v3-large":
-            config.update({"max_position_embeddings": 1536})
+        if self.model_name in ["microsoft/deberta-v3-large", "uw-madison/yoso-4096"]:
+            config.update({"max_position_embeddings": 4096})
         
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -576,7 +576,7 @@ if __name__ == "__main__":
         model.load(args.ckpt, weights_only=True)
         logging.info(f"{args.ckpt}")
     
-    freeze = Freeze()
+    freeze = Freeze(freeze=args.finetune)
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
     es = EarlyStopping(
         model_path=os.path.join(args.output, f"model_{args.fold}.bin"),
@@ -588,7 +588,8 @@ if __name__ == "__main__":
         delta=0.001,
         save_weights_only=True,
         tokenizer=tokenizer,
-        direct_output=args.decoder == "crf"
+        direct_output=args.decoder == "crf",
+        bigbird_padding=args.model == "google/bigbird-roberta-large"
     )
 
     model.fit(
@@ -597,7 +598,7 @@ if __name__ == "__main__":
         device="cuda",
         epochs=args.epochs,
         callbacks=[tb_logger, es, freeze],
-        fp16=True,
+        fp16=args.model != "uw-madison/yoso-4096",
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
     )

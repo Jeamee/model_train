@@ -353,12 +353,16 @@ class FeedbackDatasetValid:
 
             if len(input_ids) > self.max_len - 1:
                 input_ids = input_ids[: self.max_len - 1]
-                attention_mask = attention_mask[: self.max_len]
+                attention_mask = attention_mask[: self.max_len - 1]
             
             input_ids = input_ids + [self.tokenizer.sep_token_id]
+            attention_mask = attention_mask + [1]
             
-            if self.bigbird_padding and len(input_ids) > 1024:
-                padding_length = ceil(len(input_ids) / 64) * 64 - len(input_ids)
+            if self.bigbird_padding:
+                if len(input_ids) > 1024:
+                    padding_length = ceil(len(input_ids) / 64) * 64 - len(input_ids)
+                else:
+                    padding_length = 1024 - len(input_ids)
                 input_ids = input_ids + [self.tokenizer.pad_token_id] * padding_length
                 attention_mask = attention_mask + [0] * padding_length
 
@@ -383,8 +387,8 @@ class Collate:
 
     def __call__(self, batch):
         output = dict()
-        output["ids"] = pad_sequence([sample["ids"] for sample in batch], batch_first=True)
-        output["mask"] = pad_sequence([sample["mask"] for sample in batch], batch_first=True)
+        output["ids"] = pad_sequence([torch.tensor(sample["ids"], dtype=torch.long) for sample in batch], batch_first=True)
+        output["mask"] = pad_sequence([torch.tensor(sample["mask"], dtype=torch.long) for sample in batch], batch_first=True)
 
         # calculate max token length of this batch
         #batch_max = max([len(ids) for ids in output["ids"]])
@@ -404,8 +408,8 @@ class Collate:
         return output
 
 class Freeze(Callback):
-    def __init__(self):
-        self.done = False
+    def __init__(self, freeze=False):
+        self.done = freeze
         
     def on_epoch_end(self, model):
         if self.done:
@@ -417,7 +421,6 @@ class Freeze(Callback):
             params = params["params"]
             for param in params:
                 param.requires_grad = False
-
 
 class EarlyStopping(Callback):
     def __init__(
@@ -432,7 +435,7 @@ class EarlyStopping(Callback):
         delta=0.001,
         save_weights_only=True,
         direct_output=False,
-        bigbird_padding
+        bigbird_padding=False
     ):
         self.patience = patience
         self.counter = 0
