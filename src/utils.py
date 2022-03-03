@@ -408,21 +408,51 @@ class Collate:
         return output
 
 class Freeze(Callback):
-    def __init__(self, epochs=1):
+    def __init__(self, epochs=1, method="hard"):
         self.count = 0
         self.thre = epochs
+        self.method = method
+        self.done = False
+        
+        if self.method == "hard":
+            logging.info("hard freeze requires_grad -> False")
+        else:
+            logging.info("soft freeze lr -> 1e-8")
+    
+    def on_epoch_start(self, model):
+        if self.thre == 0:
+            self.done = True
+            for idx, params in enumerate(model.optimizer_grouped_parameters[2:]):
+                logging.info(f"groups {idx + 2} of {len(model.optimizer_grouped_parameters[2:])} has been freeze")
+                if self.method == "hard":
+                    params = params["params"]
+                    for param in params:
+                        param.requires_grad = False
+                else:
+                    params["lr"] = 1e-8
         
     def on_epoch_end(self, model):
-        if self.count >= self.thre:
+        if self.thre == 0:
             return
         
+        if self.done:
+            return
+        
+        self.count += 1
+        if self.count < self.thre:
+            return
         
         logging.info("freeze crf and linear layer")
-        self.count += 1
-        for params in model.optimizer_grouped_parameters[2:]:
-            params = params["params"]
-            for param in params:
-                param.requires_grad = False
+        self.done = True
+        
+        for idx, params in enumerate(model.optimizer_grouped_parameters[2:]):
+            logging.info(f"groups {idx + 2} of {len(model.optimizer_grouped_parameters[2:])} has been freeze")
+            if self.method == "hard":
+                params = params["params"]
+                for param in params:
+                    param.requires_grad = False
+            else:
+                params["lr"] = 1e-8
 
 class EarlyStopping(Callback):
     def __init__(

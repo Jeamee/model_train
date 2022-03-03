@@ -96,6 +96,7 @@ def parse_args():
     parser.add_argument("--sce_beta", type=float, required=False)
     parser.add_argument("--decoder", type=str, default="softmax", required=False)
     parser.add_argument("--freeze", type=int, default=1, required=False)
+    parser.add_argument("--freeze_method", type=str, default="hard", required=False)
     return parser.parse_args()
 
 
@@ -213,7 +214,7 @@ class Biaffine(nn.Module):
         
         bilinar_mapping = torch.einsum('bxi,ioj,byj->bxyo', x, self.U, y)
         return bilinar_mapping
-
+    
     
 class FeedbackModel(tez.Model):
     def __init__(
@@ -359,6 +360,7 @@ class FeedbackModel(tez.Model):
                 total_epoch=self.num_train_steps)
             
             return sch
+        logging.info("finetune did not set sch")
         
 
     def loss(self, outputs, targets, attention_mask):
@@ -580,7 +582,7 @@ if __name__ == "__main__":
         model.load(args.ckpt, weights_only=True, strict=False)
         logging.info(f"{args.ckpt}")
     
-    freeze = Freeze(epochs=args.freeze)
+    freeze = Freeze(epochs=args.freeze, method=args.freeze_method)
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
     es = EarlyStopping(
         model_path=os.path.join(args.output, f"model_{args.fold}.bin"),
