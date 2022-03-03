@@ -184,7 +184,8 @@ def _prepare_training_data_helper(args, tokenizer, df, train_ids):
         filename = os.path.join(args.input, "train", idx + ".txt")
         with open(filename, "r") as f:
             text = f.read()
-
+        
+        text = text.replace("\xa0", " ")
         encoded_text = tokenizer.encode_plus(
             text,
             add_special_tokens=False,

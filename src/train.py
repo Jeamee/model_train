@@ -95,7 +95,7 @@ def parse_args():
     parser.add_argument("--sce_alpha", type=float, required=False)
     parser.add_argument("--sce_beta", type=float, required=False)
     parser.add_argument("--decoder", type=str, default="softmax", required=False)
-    parser.add_argument("--freeze", type=int, default=1, required=False)
+    parser.add_argument("--freeze", type=int, default=10, required=False)
     parser.add_argument("--freeze_method", type=str, default="hard", required=False)
     return parser.parse_args()
 
@@ -275,7 +275,7 @@ class FeedbackModel(tez.Model):
         )
         
         if self.model_name in ["microsoft/deberta-v3-large", "uw-madison/yoso-4096"]:
-            config.update({"max_position_embeddings": 1536})
+            config.update({"max_position_embeddings": 4096})
         
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -350,7 +350,7 @@ class FeedbackModel(tez.Model):
     
     def fetch_scheduler(self):
         if not self.finetune:
-            min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8]
+            min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-7, 1e-7]
             patience = 10
 
             sch = GradualWarmupScheduler(
