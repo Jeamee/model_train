@@ -348,15 +348,7 @@ class FeedbackModel(tez.Model):
         return opt
     
     def fetch_scheduler(self):
-        if self.finetune:
-            sch = get_cosine_schedule_with_warmup(
-                self.optimizer,
-                num_warmup_steps=int(self.warmup_ratio * self.num_train_steps),
-                num_training_steps=self.num_train_steps,
-                num_cycles=1,
-                last_epoch=-1,
-            )
-        else:
+        if not self.finetune:
             min_lr = [1e-5, 1e-5, 1e-8, 1e-8, 1e-8, 1e-8]
             patience = 10
 
@@ -366,7 +358,7 @@ class FeedbackModel(tez.Model):
                 warmup_epoch=int(self.warmup_ratio * self.num_train_steps) ,
                 total_epoch=self.num_train_steps)
             
-        return sch
+            return sch
         
 
     def loss(self, outputs, targets, attention_mask):
