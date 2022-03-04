@@ -21,7 +21,9 @@ for filename in ['tokenization_deberta_v2.py', 'tokenization_deberta_v2_fast.py'
 
     shutil.copy(input_dir/filename, filepath)
 
-
+import gc
+gc.enable()
+    
 import sys
 sys.path.append("/workspace/tez")
 
@@ -97,6 +99,8 @@ def parse_args():
     parser.add_argument("--decoder", type=str, default="softmax", required=False)
     parser.add_argument("--freeze", type=int, default=10, required=False)
     parser.add_argument("--freeze_method", type=str, default="hard", required=False)
+    parser.add_argument("--crf_finetune", action="store_true", required=False)
+    parser.add_argument("--lower_freeze", type=float, required=False)
     return parser.parse_args()
 
 
@@ -237,7 +241,8 @@ class FeedbackModel(tez.Model):
         merge_layers_num=-2,
         log_loss=False,
         warmup_ratio=0.05,
-        finetune=False
+        finetune=False,
+        lower_freeze=0.
     ):
         super().__init__()
         self.cur_step = 0
@@ -257,6 +262,7 @@ class FeedbackModel(tez.Model):
         self.log_loss=log_loss
         self.warmup_ratio = warmup_ratio
         self.finetune = finetune
+        self.lower_freeze = lower_freeze
         self.step_scheduler_after = "batch"
 
         hidden_dropout_prob: float = 0.1
@@ -284,6 +290,14 @@ class FeedbackModel(tez.Model):
         self.dropout3 = nn.Dropout(0.3)
         self.dropout4 = nn.Dropout(0.4)
         self.dropout5 = nn.Dropout(0.5)
+        
+        if self.lower_freeze > 0:
+            params = list(self.transformer.parameters())
+            layer_num = int(len(params) * self.lower_freeze)
+            for param in params[: layer_num + 1]:
+                param.requires_grad = False
+            torch.cuda.empty_cache()
+            gc.collect()
         
         if self.log_loss:
             self.layer_norm = nn.LayerNorm(config.hidden_size)
@@ -325,22 +339,24 @@ class FeedbackModel(tez.Model):
                 other_param_optimizer.append((name, para))
                 
         crf_lf = 1e-5 if self.finetune else 1e-2
+        
+        
 
         self.optimizer_grouped_parameters = [
-            {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay)],
+            {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay) and p.requires_grad],
              "weight_decay": 0.01, 'lr': self.transformer_learning_rate},
-            {"params": [p for n, p in lonformer_param_optimizer if any(nd in n for nd in no_decay)],
+            {"params": [p for n, p in lonformer_param_optimizer if any(nd in n for nd in no_decay) and p.requires_grad],
              "weight_decay": 0.0, 'lr': self.transformer_learning_rate},
             
-            {"params": [p for n, p in crf_param_optimizer if not any(nd in n for nd in no_decay)],
+            {"params": [p for n, p in crf_param_optimizer if not any(nd in n for nd in no_decay) and p.requires_grad],
              "weight_decay": 0.01, 'lr': crf_lf},
-            {"params": [p for n, p in crf_param_optimizer if any(nd in n for nd in no_decay)],
+            {"params": [p for n, p in crf_param_optimizer if any(nd in n for nd in no_decay) and p.requires_grad],
              "weight_decay": 0.0, 'lr': crf_lf},
 
             # 其他模块，差分学习率
-            {"params": [p for n, p in other_param_optimizer if not any(nd in n for nd in no_decay)],
+            {"params": [p for n, p in other_param_optimizer if not any(nd in n for nd in no_decay) and p.requires_grad],
              "weight_decay": 0.01, 'lr': self.other_learning_rate},
-            {"params": [p for n, p in other_param_optimizer if any(nd in n for nd in no_decay)],
+            {"params": [p for n, p in other_param_optimizer if any(nd in n for nd in no_decay) and p.requires_grad],
              "weight_decay": 0.0, 'lr': self.other_learning_rate},
         ]
         
@@ -575,14 +591,23 @@ if __name__ == "__main__":
         decoder=args.decoder,
         log_loss=args.log_loss,
         warmup_ratio=args.warmup_ratio,
-        finetune=args.finetune
+        finetune=args.finetune,
+        lower_freeze=args.lower_freeze
     )
     
     if args.ckpt:
         model.load(args.ckpt, weights_only=True, strict=False)
         logging.info(f"{args.ckpt}")
+        if args.crf_finetune:
+            for name, para in self.named_parameters():
+                space = name.split('.')
+                if space[0] != 'transformer':
+                    para.requires_grad = False
+                    
+    torch.cuda.empty_cache()
+    gc.collect()
     
-    freeze = Freeze(epochs=args.freeze, method=args.freeze_method)
+    freeze = Freeze(epochs=args.freeze if not args.crf_finetune else 9999, method=args.freeze_method)
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
     es = EarlyStopping(
         model_path=os.path.join(args.output, f"model_{args.fold}.bin"),
