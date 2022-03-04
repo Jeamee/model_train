@@ -1,5 +1,5 @@
 set -Eeuox
-EPOCH=5
+EPOCH=4
 DATE=0304
 DECODER=softmax
 BS=4

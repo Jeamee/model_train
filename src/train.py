@@ -270,7 +270,7 @@ class FeedbackModel(tez.Model):
         hidden_dropout_prob: float = 0.1
         layer_norm_eps: float = 1e-7
 
-        config = AutoConfig.from_pretrained(model_name)
+        config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
 
         config.update(
             {
