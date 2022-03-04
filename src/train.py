@@ -244,7 +244,8 @@ class FeedbackModel(tez.Model):
         log_loss=False,
         warmup_ratio=0.05,
         finetune=False,
-        lower_freeze=0.
+        lower_freeze=0.,
+        crf_finetune=False
     ):
         super().__init__()
         self.cur_step = 0
@@ -266,6 +267,7 @@ class FeedbackModel(tez.Model):
         self.finetune = finetune
         self.lower_freeze = lower_freeze
         self.step_scheduler_after = "batch"
+        self.crf_finetune = crf_finetune
 
         hidden_dropout_prob: float = 0.1
         layer_norm_eps: float = 1e-7
@@ -322,6 +324,12 @@ class FeedbackModel(tez.Model):
             self.loss_layer = SCELoss(sce_alpha, sce_beta, num_classes=num_labels if self.decoder != "span" else span_num_labels, label_smooth=label_smooth)
         else:
             raise ValueError("loss set error, must in [ce, sce]")
+            
+        if crf_finetune:
+            for name, para in self.named_parameters():
+                space = name.split('.')
+                if space[0] != 'crf':
+                    para.requires_grad = False
 
     def fetch_optimizer(self):
         param_optimizer = list(self.named_parameters())
@@ -422,6 +430,8 @@ class FeedbackModel(tez.Model):
         return {"f1": f1_score}
 
     def forward(self, ids, mask, token_type_ids=None, targets=None):
+        if self.crf_finetune:
+            torch.set_grad_enabled(False)
         if token_type_ids:
             transformer_out = self.transformer(ids, mask, token_type_ids, output_hidden_states=self.dynamic_merge_layers)
         else:
@@ -479,6 +489,8 @@ class FeedbackModel(tez.Model):
             logits = (start_logits, end_logits)
         
         probs = None
+        if self.crf_finetune:
+            torch.set_grad_enabled(True)
         if self.decoder == "softmax":
             probs = torch.softmax(logits, dim=-1)
         elif self.decoder == "crf":
@@ -600,20 +612,14 @@ if __name__ == "__main__":
         log_loss=args.log_loss,
         warmup_ratio=args.warmup_ratio,
         finetune=args.finetune,
-        lower_freeze=args.lower_freeze
+        lower_freeze=args.lower_freeze,
+        crf_finetune=args.crf_finetune
     )
     
     if args.ckpt:
         model.load(args.ckpt, weights_only=True, strict=False)
         logging.info(f"{args.ckpt}")
-        if args.crf_finetune:
-            for name, para in self.named_parameters():
-                space = name.split('.')
-                if space[0] != 'transformer':
-                    para.requires_grad = False
-                    
-    torch.cuda.empty_cache()
-    gc.collect()
+        
     
     freeze = Freeze(epochs=args.freeze if not args.crf_finetune else 9999, method=args.freeze_method)
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
