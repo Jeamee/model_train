@@ -39,6 +39,7 @@ import pandas as pd
 import tez
 import torch
 import torch.nn as nn
+import bitsandbytes as bnb
 from tqdm import tqdm
 from math import ceil
 from tez import enums
@@ -49,6 +50,7 @@ from torch.nn import functional as F
 from transformers import AdamW, AutoConfig, AutoModel, AutoTokenizer, get_cosine_schedule_with_warmup
 from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV2TokenizerFast
 from torchcrf import CRF
+
 
 
 from utils import EarlyStopping, prepare_training_data, target_id_map, id_target_map, span_target_id_map, span_id_target_map, GradualWarmupScheduler, ReduceLROnPlateau, span_decode
@@ -100,7 +102,7 @@ def parse_args():
     parser.add_argument("--freeze", type=int, default=10, required=False)
     parser.add_argument("--freeze_method", type=str, default="hard", required=False)
     parser.add_argument("--crf_finetune", action="store_true", required=False)
-    parser.add_argument("--lower_freeze", type=float, required=False)
+    parser.add_argument("--lower_freeze", type=float, default=0., required=False)
     return parser.parse_args()
 
 
@@ -360,8 +362,14 @@ class FeedbackModel(tez.Model):
              "weight_decay": 0.0, 'lr': self.other_learning_rate},
         ]
         
-        
-        opt = AdamW(self.optimizer_grouped_parameters, lr=self.transformer_learning_rate)
+        opt = bnb.optim.AdamW8bit(self.optimizer_grouped_parameters, lr=self.transformer_learning_rate)
+    
+        for module in self.modules():
+            if isinstance(module, torch.nn.Embedding):
+                bnb.optim.GlobalOptimManager.get_instance().register_module_override(
+                    module, 'weight', {'optim_bits': 32}
+                )            
+        #opt = AdamW(self.optimizer_grouped_parameters, lr=self.transformer_learning_rate)
         return opt
     
     def fetch_scheduler(self):
