@@ -23,7 +23,7 @@ for filename in ['tokenization_deberta_v2.py', 'tokenization_deberta_v2_fast.py'
 
 import gc
 gc.enable()
-    
+
 import sys
 sys.path.append("/workspace/tez")
 
@@ -49,7 +49,8 @@ from torch.nn.parameter import Parameter
 from torch.nn import functional as F
 from transformers import AdamW, AutoConfig, AutoModel, AutoTokenizer, get_cosine_schedule_with_warmup
 from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV2TokenizerFast
-from torchcrf import CRF
+#from torchcrf import CRF
+from pytorchcrf import CRF
 
 
 
@@ -245,7 +246,8 @@ class FeedbackModel(tez.Model):
         warmup_ratio=0.05,
         finetune=False,
         lower_freeze=0.,
-        crf_finetune=False
+        crf_finetune=False,
+        mid_linear_dims=128
     ):
         super().__init__()
         self.cur_step = 0
@@ -284,10 +286,16 @@ class FeedbackModel(tez.Model):
             }
         )
         
-        if self.model_name in ["microsoft/deberta-v3-large", "uw-madison/yoso-4096"]:
+        if self.model_name in ["microsoft/deberta-v3-large", "uw-madison/yoso-4096", "funnel-transformer/xlarge"]:
+            logging.info("set max_position_embeddings to 4096")
             config.update({"max_position_embeddings": 4096})
         
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
+        
+        self.mid_linear = nn.Sequential(
+            nn.Linear(config.hidden_size, mid_linear_dims),
+            nn.ReLU(),
+        )
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.dropout1 = nn.Dropout(0.1)
         self.dropout2 = nn.Dropout(0.2)
@@ -313,7 +321,7 @@ class FeedbackModel(tez.Model):
             self.start_fc = nn.Linear(config.hidden_size, span_num_labels)
             self.end_fc = nn.Linear(config.hidden_size, span_num_labels)
         else:
-            self.output = nn.Linear(config.hidden_size, self.num_labels)
+            self.output = nn.Linear(mid_linear_dims, self.num_labels)
             if self.decoder == "crf":
                 self.crf = CRF(num_tags=num_labels, batch_first=True)
         
@@ -421,7 +429,7 @@ class FeedbackModel(tez.Model):
             active_logits = outputs.view(-1, self.num_labels)
             outputs = active_logits.argmax(dim=-1).cpu().numpy()[idxs]
         elif self.decoder == "crf":
-            outputs = torch.Tensor([output + [0] * (self.max_len - len(output)) for output in outputs])
+            # outputs = torch.Tensor([output + [0] * (self.max_len - len(output)) for output in outputs])
             outputs = outputs.view(-1).cpu().numpy()[idxs]
         else:
             raise ValueException("except decoder in [softmax, crf]")
@@ -430,8 +438,6 @@ class FeedbackModel(tez.Model):
         return {"f1": f1_score}
 
     def forward(self, ids, mask, token_type_ids=None, targets=None):
-        if self.crf_finetune:
-            torch.set_grad_enabled(False)
         if token_type_ids:
             transformer_out = self.transformer(ids, mask, token_type_ids, output_hidden_states=self.dynamic_merge_layers)
         else:
@@ -448,7 +454,8 @@ class FeedbackModel(tez.Model):
         if self.log_loss:
             sequence_output = self.layer_norm(sequence_output)
             
-        sequence_output = self.dropout(sequence_output)
+        # sequence_output = self.dropout(sequence_output)
+        sequence_output = self.mid_linear(sequence_output)
         
         if self.decoder == "softmax":
             logits1 = self.output(self.dropout1(sequence_output))
@@ -489,8 +496,6 @@ class FeedbackModel(tez.Model):
             logits = (start_logits, end_logits)
         
         probs = None
-        if self.crf_finetune:
-            torch.set_grad_enabled(True)
         if self.decoder == "softmax":
             probs = torch.softmax(logits, dim=-1)
         elif self.decoder == "crf":
@@ -572,10 +577,13 @@ if __name__ == "__main__":
 
     train_df = df[df["kfold"] != args.fold].reset_index(drop=True)
     valid_df = df[df["kfold"] == args.fold].reset_index(drop=True)
-    if args.model == "microsoft/deberta-v3-large":
+    if args.model in ["microsoft/deberta-v3-large", "microsoft/deberta-v2-xlarge"]:
         tokenizer = DebertaV2TokenizerFast.from_pretrained(args.model)
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model)
+    if args.model != "allenai/longformer-large-4096":
+        tokenizer.add_tokens("\n", special_tokens=True)
+        
     training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS)
     valid_samples = prepare_training_data(valid_df, tokenizer, args, num_jobs=NUM_JOBS)
 
