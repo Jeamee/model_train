@@ -584,6 +584,7 @@ if __name__ == "__main__":
     if args.model != "allenai/longformer-large-4096":
         tokenizer.add_tokens("\n", special_tokens=True)
         model.resize_token_embeddings(len(tokenizer))
+        logging.info("add return token to vocab")
         
     training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS)
     valid_samples = prepare_training_data(valid_df, tokenizer, args, num_jobs=NUM_JOBS)
