@@ -2,7 +2,7 @@ set -Eeuox
 EPOCH=3
 DATE=0301
 DECODER=crf
-BS=2
+BS=4
 MAX_LEN=1536
 EP=5
 MODEL="microsoft/deberta-v3-large"
