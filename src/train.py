@@ -47,6 +47,7 @@ from copy import deepcopy
 from sklearn import metrics
 from torch.nn.parameter import Parameter
 from torch.nn import functional as F
+from torch.optim.lr_scheduler import StepLR
 from transformers import AdamW, AutoConfig, AutoModel, AutoTokenizer, get_cosine_schedule_with_warmup
 from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV2TokenizerFast
 #from torchcrf import CRF
@@ -332,6 +333,12 @@ class FeedbackModel(tez.Model):
         else:
             raise ValueError("loss set error, must in [ce, sce]")
             
+        if crf_finetune:
+            for name, para in self.named_parameters():
+                space = name.split('.')
+                if space[0] != 'crf':
+                    para.requires_grad = False
+            
     def fetch_optimizer(self):
         param_optimizer = list(self.named_parameters())
         no_decay = ["bias", "LayerNorm.bias"]
@@ -389,9 +396,12 @@ class FeedbackModel(tez.Model):
                 multiplier=1.1,
                 warmup_epoch=int(self.warmup_ratio * self.num_train_steps) ,
                 total_epoch=self.num_train_steps)
-            
+            logging.info("finetune did not set sch")
             return sch
-        logging.info("finetune did not set sch")
+        
+        if self.crf_finetune:
+            sch = StepLR(self.optimizer, self.num_train_steps // 4, gamma=0.2)
+            logging.info("crf finetune set steplr sch")
         
 
     def loss(self, outputs, targets, attention_mask):
@@ -429,8 +439,6 @@ class FeedbackModel(tez.Model):
         return {"f1": f1_score}
 
     def forward(self, ids, mask, token_type_ids=None, targets=None):
-        if self.crf_finetune:
-            self.eval()
         if token_type_ids:
             transformer_out = self.transformer(ids, mask, token_type_ids, output_hidden_states=self.dynamic_merge_layers)
         else:
@@ -567,7 +575,7 @@ def set_log(log_file):
 if __name__ == "__main__":
     NUM_JOBS = 14
     args = parse_args()
-    seed_everything(12)
+    seed_everything(42)
     set_log(args.log)
     os.makedirs(args.output, exist_ok=True)
     df = pd.read_csv(os.path.join(args.input, "train_folds10.csv"))
