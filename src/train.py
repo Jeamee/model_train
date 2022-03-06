@@ -283,6 +283,7 @@ class FeedbackModel(tez.Model):
                 "layer_norm_eps": layer_norm_eps,
                 "add_pooling_layer": False,
                 "num_labels": self.num_labels,
+                
             }
         )
         
@@ -653,7 +654,7 @@ if __name__ == "__main__":
         save_weights_only=True,
         tokenizer=tokenizer,
         direct_output=args.decoder == "crf",
-        bigbird_padding=args.model == "google/bigbird-roberta-large"
+        bigbird_padding=args.model in ["google/bigbird-roberta-large", "patrickvonplaten/bigbird-roberta-large"]
     )
 
     model.fit(
