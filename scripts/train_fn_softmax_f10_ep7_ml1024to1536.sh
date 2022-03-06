@@ -10,4 +10,4 @@ python ../src/train.py --fold $EPOCH --model $MODEL --decoder $DECODER \
 --input /workspace/feedback-prize-2021 \
 --output /workspace/${MODEL#*/}_${DECODER}_bs${BS}_ml${MAX_LEN}_${DATE} \
 --log ../logs/${MODEL#*/}_${DECODER}_${DATE}_ep${EPOCH}.log \
---ckpt /workspace/
+--ckpt /workspace/model_7.bin
