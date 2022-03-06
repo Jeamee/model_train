@@ -430,7 +430,7 @@ class FeedbackModel(tez.Model):
             outputs = active_logits.argmax(dim=-1).cpu().numpy()[idxs]
         elif self.decoder == "crf":
             # outputs = torch.Tensor([output + [0] * (self.max_len - len(output)) for output in outputs])
-            outputs = outputs.view(-1).cpu().numpy()[idxs]
+            outputs = outputs.reshape(-1).cpu().numpy()[idxs]
         else:
             raise ValueException("except decoder in [softmax, crf]")
             
@@ -625,13 +625,15 @@ if __name__ == "__main__":
         crf_finetune=args.crf_finetune
     )
     
+    if args.model != "allenai/longformer-large-4096":
+        model.transformer.resize_token_embeddings(len(tokenizer))
+        logging.info("model emb matrix resized")
+    
     if args.ckpt:
         model.load(args.ckpt, weights_only=True, strict=False)
         logging.info(f"{args.ckpt}")
         
-    if args.model != "allenai/longformer-large-4096":
-        model.transformer.resize_token_embeddings(len(tokenizer))
-        logging.info("model emb matrix resized")
+    
     
     freeze = Freeze(epochs=args.freeze if not args.crf_finetune else 9999, method=args.freeze_method)
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
