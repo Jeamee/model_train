@@ -53,7 +53,6 @@ from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV
 from pytorchcrf import CRF
 
 
-
 from utils import EarlyStopping, prepare_training_data, target_id_map, id_target_map, span_target_id_map, span_id_target_map, GradualWarmupScheduler, ReduceLROnPlateau, span_decode
 from utils import biaffine_decode, Freeze
 from dice_loss import DiceLoss
@@ -333,12 +332,6 @@ class FeedbackModel(tez.Model):
         else:
             raise ValueError("loss set error, must in [ce, sce]")
             
-        if crf_finetune:
-            for name, para in self.named_parameters():
-                space = name.split('.')
-                if space[0] != 'crf':
-                    para.requires_grad = False
-
     def fetch_optimizer(self):
         param_optimizer = list(self.named_parameters())
         no_decay = ["bias", "LayerNorm.bias"]
@@ -358,8 +351,6 @@ class FeedbackModel(tez.Model):
                 
         crf_lf = 1e-5 if self.finetune else 1e-2
         
-        
-
         self.optimizer_grouped_parameters = [
             {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay) and p.requires_grad],
              "weight_decay": 0.01, 'lr': self.transformer_learning_rate},
@@ -429,7 +420,7 @@ class FeedbackModel(tez.Model):
             active_logits = outputs.view(-1, self.num_labels)
             outputs = active_logits.argmax(dim=-1).cpu().numpy()[idxs]
         elif self.decoder == "crf":
-            # outputs = torch.Tensor([output + [0] * (self.max_len - len(output)) for output in outputs])
+            #outputs = outputs.view(-1).cpu().numpy()[idxs]
             outputs = outputs.reshape(-1).cpu().numpy()[idxs]
         else:
             raise ValueException("except decoder in [softmax, crf]")
@@ -438,6 +429,8 @@ class FeedbackModel(tez.Model):
         return {"f1": f1_score}
 
     def forward(self, ids, mask, token_type_ids=None, targets=None):
+        if self.crf_finetune:
+            self.eval()
         if token_type_ids:
             transformer_out = self.transformer(ids, mask, token_type_ids, output_hidden_states=self.dynamic_merge_layers)
         else:
@@ -506,6 +499,8 @@ class FeedbackModel(tez.Model):
             raise ValueException("except decoder in [softmax, crf]")
         loss = 0
         metric = {}
+        
+        
 
         if targets is not None:
             if self.decoder == "softmax":
@@ -517,6 +512,8 @@ class FeedbackModel(tez.Model):
                 loss = (loss1 + loss2 + loss3 + loss4 + loss5) / 5
             elif self.decoder == "crf":
                 targets = targets * mask
+                if self.crf_finetune:
+                    self.train()
                 loss = -1. * self.crf(emissions=logits, tags=targets, mask=mask.byte(), reduction='mean')
             elif self.decoder == "span":
                 targets, start_targets, end_targets = targets

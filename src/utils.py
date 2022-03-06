@@ -508,13 +508,14 @@ class EarlyStopping(Callback):
         final_scores = []
         for output in preds_iter:
             if self.direct_output:
-                pred_class = output["preds"]
+                pred_class = np.squeeze(output["preds"])
                 pred_scrs = [[1] * len(_) for _ in pred_class]
             else:
                 pred_class = np.argmax(output["preds"], axis=2)
                 pred_scrs = np.max(output["preds"], axis=2)
             
             for pred, pred_scr in zip(pred_class, pred_scrs):
+                print(pred.shape)
                 final_preds.append(pred if isinstance(pred, list) else pred.tolist())
                 final_scores.append(pred_scr if isinstance(pred_scr, list) else pred_scr.tolist())
 
