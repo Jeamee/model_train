@@ -610,6 +610,7 @@ class EarlyStopping(Callback):
 
         # drop len
         submission = submission.drop(columns=["len"])
+        submission.to_csv(f"{self.model_path}_epoch{self.epoch}.csv")
 
         scr = score_feedback_comp(submission, self.valid_df, return_class_scores=True)
         logging.info(f"epoch {self.epoch} total:{scr}")
