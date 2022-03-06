@@ -285,7 +285,7 @@ class FeedbackModel(tez.Model):
             }
         )
         
-        if self.model_name in ["microsoft/deberta-v3-large", "uw-madison/yoso-4096", "funnel-transformer/xlarge"]:
+        if self.model_name in ["microsoft/deberta-v3-large", "microsoft/deberta-v2-xlarge", "uw-madison/yoso-4096", "funnel-transformer/xlarge"]:
             logging.info("set max_position_embeddings to 4096")
             config.update({"max_position_embeddings": 4096})
         
