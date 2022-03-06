@@ -630,7 +630,7 @@ if __name__ == "__main__":
         logging.info(f"{args.ckpt}")
         
     if args.model != "allenai/longformer-large-4096":
-        model.resize_token_embeddings(len(tokenizer))
+        model.transformer.resize_token_embeddings(len(tokenizer))
         logging.info("model emb matrix resized")
     
     freeze = Freeze(epochs=args.freeze if not args.crf_finetune else 9999, method=args.freeze_method)
