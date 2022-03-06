@@ -575,7 +575,7 @@ def set_log(log_file):
 if __name__ == "__main__":
     NUM_JOBS = 14
     args = parse_args()
-    seed_everything(42)
+    seed_everything(43)
     set_log(args.log)
     os.makedirs(args.output, exist_ok=True)
     df = pd.read_csv(os.path.join(args.input, "train_folds10.csv"))
