@@ -311,10 +311,7 @@ class FeedbackModel(tez.Model):
             torch.cuda.empty_cache()
             gc.collect()
         
-        self.activate = None
-        if self.model_name in ["google/bigbird-roberta-large", "patrickvonplaten/bigbird-roberta-large", "microsoft/deberta-v2-xlarge"]:
-            logging.info("set activate function SELU")
-            self.activate = nn.SELU()
+        self.activate = nn.SELU()
             
         if self.dynamic_merge_layers:
             self.layer_logits = nn.Linear(config.hidden_size, 1)
@@ -456,8 +453,7 @@ class FeedbackModel(tez.Model):
         else:
             sequence_output = transformer_out.last_hidden_state
             
-        if self.activate:
-            sequence_output = self.activate(sequence_output)
+        sequence_output = self.activate(sequence_output)
             
         sequence_output = self.dropout(sequence_output)
         
