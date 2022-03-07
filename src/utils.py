@@ -240,7 +240,7 @@ def read_txts(args, ids):
     return id_text_map
 
 
-def prepare_training_data(df, tokenizer, args, num_jobs, only_bigger_than_1024):
+def prepare_training_data(df, tokenizer, args, num_jobs, only_bigger_than_1024=False):
     training_samples = []
     train_ids = df["id"].unique().tolist()
     
