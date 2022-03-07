@@ -256,7 +256,7 @@ def prepare_training_data(df, tokenizer, args, num_jobs, only_bigger_than_1024):
     if only_bigger_than_1024:
         logging.info("only train on length > 1024")
         train_ids = filter(lambda x: len(id_text_map[x]) > 1024, train_ids)
-    train_ids.sort(key=lambda x: len(id_text_map[x]))
+    train_ids = sorted(train_ids, key=lambda x: len(id_text_map[x]))
     train_ids_splits = np.array_split(train_ids, num_jobs)
     results = Parallel(n_jobs=num_jobs, backend="multiprocessing")(
         delayed(_prepare_training_data_helper)(args, tokenizer, df, idx, id_text_map) for idx in train_ids_splits
