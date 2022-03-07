@@ -290,16 +290,20 @@ class FeedbackModel(tez.Model):
             }
         )
         
+        if self.model_name in ["google/bigbird-roberta-large", "patrickvonplaten/bigbird-roberta-large"]:
+            logging.info("set bigbird activate function to selu")
+            config.update(
+            {
+                "hidden_act ": "selu",
+            }
+        )
+        
         if self.model_name in ["microsoft/deberta-v3-large", "microsoft/deberta-v2-xlarge", "uw-madison/yoso-4096", "funnel-transformer/xlarge"]:
             logging.info("set max_position_embeddings to 4096")
             config.update({"max_position_embeddings": 4096})
         
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
-        
-        self.mid_linear = nn.Sequential(
-            nn.Linear(config.hidden_size, mid_linear_dims),
-            nn.SELU(),
-        )
+
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.dropout1 = nn.Dropout(0.1)
         self.dropout2 = nn.Dropout(0.2)
@@ -325,10 +329,9 @@ class FeedbackModel(tez.Model):
             self.start_fc = nn.Linear(config.hidden_size, span_num_labels)
             self.end_fc = nn.Linear(config.hidden_size, span_num_labels)
         else:
-            self.output = nn.Linear(mid_linear_dims, self.num_labels)
+            self.output = nn.Linear(config.hidden_size, self.num_labels)
             if self.decoder == "crf":
                 self.crf = CRF(num_tags=num_labels, batch_first=True)
-        
         
         if loss == "ce":
             self.loss_layer = nn.CrossEntropyLoss(label_smoothing=label_smooth)
@@ -459,8 +462,7 @@ class FeedbackModel(tez.Model):
         if self.log_loss:
             sequence_output = self.layer_norm(sequence_output)
             
-        # sequence_output = self.dropout(sequence_output)
-        sequence_output = self.mid_linear(sequence_output)
+        sequence_output = self.dropout(sequence_output)
         
         if self.decoder == "softmax":
             logits1 = self.output(self.dropout1(sequence_output))
@@ -524,8 +526,6 @@ class FeedbackModel(tez.Model):
                 loss = (loss1 + loss2 + loss3 + loss4 + loss5) / 5
             elif self.decoder == "crf":
                 targets = targets * mask
-                if self.crf_finetune:
-                    self.train()
                 loss = -1. * self.crf(emissions=logits, tags=targets, mask=mask.byte(), reduction='mean')
             elif self.decoder == "span":
                 targets, start_targets, end_targets = targets
