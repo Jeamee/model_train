@@ -597,7 +597,7 @@ if __name__ == "__main__":
         tokenizer.add_tokens("\n", special_tokens=True)
         logging.info("add return token to vocab")
         
-    training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS, args.finetune_to_1536)
+    training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS, only_bigger_than_1024=args.finetune_to_1536)
     valid_samples = prepare_training_data(valid_df, tokenizer, args, num_jobs=NUM_JOBS)
 
     train_dataset = FeedbackDataset(
