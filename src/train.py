@@ -466,7 +466,7 @@ class FeedbackModel(tez.Model):
             logits3 = self.output(self.dropout3(sequence_output))
             logits4 = self.output(self.dropout4(sequence_output))
             logits5 = self.output(self.dropout5(sequence_output))
-            logits = (logits1 + logits2 + logits3 + logits4 + logits5) / 5
+            logits = self.output(sequence_output)
         elif self.decoder == "crf":
             sequence_output1 = self.dropout1(sequence_output)
             sequence_output2 = self.dropout2(sequence_output)
