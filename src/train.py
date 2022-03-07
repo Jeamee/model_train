@@ -104,6 +104,8 @@ def parse_args():
     parser.add_argument("--freeze_method", type=str, default="hard", required=False)
     parser.add_argument("--crf_finetune", action="store_true", required=False)
     parser.add_argument("--lower_freeze", type=float, default=0., required=False)
+    parser.add_argument("--finetune_to_1536", action="store_true", required=False)
+    
     return parser.parse_args()
 
 
@@ -595,7 +597,7 @@ if __name__ == "__main__":
         tokenizer.add_tokens("\n", special_tokens=True)
         logging.info("add return token to vocab")
         
-    training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS)
+    training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS, args.finetune_to_1536)
     valid_samples = prepare_training_data(valid_df, tokenizer, args, num_jobs=NUM_JOBS)
 
     train_dataset = FeedbackDataset(
