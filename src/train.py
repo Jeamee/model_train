@@ -468,12 +468,7 @@ class FeedbackModel(tez.Model):
             logits5 = self.output(self.dropout5(sequence_output))
             logits = self.output(sequence_output)
         elif self.decoder == "crf":
-            sequence_output1 = self.dropout1(sequence_output)
             sequence_output2 = self.dropout2(sequence_output)
-            sequence_output3 = self.dropout3(sequence_output)
-            sequence_output4 = self.dropout4(sequence_output)
-            sequence_output5 = self.dropout5(sequence_output)
-            sequence_output = (sequence_output1 + sequence_output2 + sequence_output3 +sequence_output4 + sequence_output5) / 5
             logits = self.output(sequence_output)
         elif self.decoder == "span":
             sequence_output1 = self.dropout1(sequence_output)
@@ -668,5 +663,6 @@ if __name__ == "__main__":
         fp16=args.model != "uw-madison/yoso-4096",
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
+        clip_grad_norm=5.
     )
 
