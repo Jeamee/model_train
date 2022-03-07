@@ -178,14 +178,10 @@ def smooth_one_hot(true_labels: torch.Tensor, classes: int, smoothing=0.0):
     return true_dist
 
 
-def _prepare_training_data_helper(args, tokenizer, df, train_ids):
+def _prepare_training_data_helper(args, tokenizer, df, train_ids, id_text_map):
     training_samples = []
     for idx in tqdm(train_ids):
-        filename = os.path.join(args.input, "train", idx + ".txt")
-        with open(filename, "r") as f:
-            text = f.read()
-        
-        text = text.replace("\xa0", " ")
+        text = id_text_map[idx]
         encoded_text = tokenizer.encode_plus(
             text,
             add_special_tokens=False,
@@ -231,14 +227,37 @@ def _prepare_training_data_helper(args, tokenizer, df, train_ids):
     return training_samples
 
 
+def read_txts(args, ids):
+    id_text_map = {}
+    for idx in tqdm(ids):
+        filename = os.path.join(args.input, "train", idx + ".txt")
+        with open(filename, "r") as f:
+            text = f.read()
+        
+        text = text.replace("\xa0", " ")
+        id_text_map[idx] = text
+    
+    return id_text_map
+
+
 def prepare_training_data(df, tokenizer, args, num_jobs):
     training_samples = []
-    train_ids = df["id"].unique()
-
+    train_ids = df["id"].unique().tolist()
+    
+    id_text_map = {}
+    
     train_ids_splits = np.array_split(train_ids, num_jobs)
-
     results = Parallel(n_jobs=num_jobs, backend="multiprocessing")(
-        delayed(_prepare_training_data_helper)(args, tokenizer, df, idx) for idx in train_ids_splits
+        delayed(read_txts)(args, idx) for idx in train_ids_splits
+    )
+    for result in results:
+        id_text_map.update(result)
+    
+        
+    train_ids.sort(key=lambda x: len(id_text_map[x]))
+    train_ids_splits = np.array_split(train_ids, num_jobs)
+    results = Parallel(n_jobs=num_jobs, backend="multiprocessing")(
+        delayed(_prepare_training_data_helper)(args, tokenizer, df, idx, id_text_map) for idx in train_ids_splits
     )
     for result in results:
         training_samples.extend(result)

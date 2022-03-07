@@ -124,6 +124,7 @@ class FeedbackDataset:
     def _init(self):
         new_samples = []
         for sample in tqdm(self.samples, total=len(self.samples)):
+            sample_id = sample["id"]
             input_ids = sample["input_ids"]
             input_labels = sample["input_labels"]
             input_labels = [target_id_map[x] for x in input_labels]
@@ -295,7 +296,7 @@ class FeedbackModel(tez.Model):
         
         self.mid_linear = nn.Sequential(
             nn.Linear(config.hidden_size, mid_linear_dims),
-            nn.ReLU(),
+            nn.SELU(),
         )
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.dropout1 = nn.Dropout(0.1)
@@ -439,7 +440,7 @@ class FeedbackModel(tez.Model):
         f1_score = metrics.f1_score(true_labels[idxs], outputs, average="macro")
         return {"f1": f1_score}
 
-    def forward(self, ids, mask, token_type_ids=None, targets=None):
+    def forward(self, ids, mask, token_type_ids=None, targets=None, id=None):
         if token_type_ids:
             transformer_out = self.transformer(ids, mask, token_type_ids, output_hidden_states=self.dynamic_merge_layers)
         else:
@@ -547,6 +548,9 @@ class FeedbackModel(tez.Model):
             
             f1 = self.monitor_metrics(probs, targets, attention_mask=mask)["f1"]
             metric["f1"] = f1
+            if id:
+                id = " ".join(id)
+                logging.info(f"step: {self.current_train_step}, ids: {id}, f1: {f1}")
         
         if self.log_loss:
             loss = torch.log(loss)
