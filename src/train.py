@@ -319,8 +319,7 @@ class FeedbackModel(tez.Model):
             torch.cuda.empty_cache()
             gc.collect()
         
-        if self.log_loss:
-            self.layer_norm = nn.LayerNorm(config.hidden_size)
+        self.activate = nn.SELU()
             
         if self.dynamic_merge_layers:
             self.layer_logits = nn.Linear(config.hidden_size, 1)
@@ -459,8 +458,8 @@ class FeedbackModel(tez.Model):
         else:
             sequence_output = transformer_out.last_hidden_state
             
-        if self.log_loss:
-            sequence_output = self.layer_norm(sequence_output)
+        
+        sequence_output = self.activate(sequence_output)
             
         sequence_output = self.dropout(sequence_output)
         
@@ -526,7 +525,7 @@ class FeedbackModel(tez.Model):
                 loss = (loss1 + loss2 + loss3 + loss4 + loss5) / 5
             elif self.decoder == "crf":
                 targets = targets * mask
-                loss = -1. * self.crf(emissions=logits, tags=targets, mask=mask.byte(), reduction='mean')
+                loss = -1. * self.crf(emissions=logits, tags=targets, mask=mask.byte(), reduction='token_mean')
             elif self.decoder == "span":
                 targets, start_targets, end_targets = targets
                 
@@ -580,7 +579,7 @@ def set_log(log_file):
     logger.addHandler(ch)
 
 if __name__ == "__main__":
-    NUM_JOBS = 14
+    NUM_JOBS = 15
     args = parse_args()
     seed_everything(43)
     set_log(args.log)
@@ -594,7 +593,7 @@ if __name__ == "__main__":
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model)
     if args.model != "allenai/longformer-large-4096":
-        tokenizer.add_tokens("\n", special_tokens=True)
+        tokenizer.add_tokens("\n\n", special_tokens=True)
         logging.info("add return token to vocab")
         
     training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS, only_bigger_than_1024=args.finetune_to_1536)
