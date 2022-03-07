@@ -290,14 +290,6 @@ class FeedbackModel(tez.Model):
             }
         )
         
-        if self.model_name in ["google/bigbird-roberta-large", "patrickvonplaten/bigbird-roberta-large"]:
-            logging.info("set bigbird activate function to selu")
-            config.update(
-            {
-                "hidden_act ": "selu",
-            }
-        )
-        
         if self.model_name in ["microsoft/deberta-v3-large", "microsoft/deberta-v2-xlarge", "uw-madison/yoso-4096", "funnel-transformer/xlarge"]:
             logging.info("set max_position_embeddings to 4096")
             config.update({"max_position_embeddings": 4096})
@@ -319,7 +311,10 @@ class FeedbackModel(tez.Model):
             torch.cuda.empty_cache()
             gc.collect()
         
-        self.activate = nn.SELU()
+        self.activate = None
+        if self.model_name in ["google/bigbird-roberta-large", "patrickvonplaten/bigbird-roberta-large", "microsoft/deberta-v2-xlarge"]:
+            logging.info("set activate function SELU")
+            self.activate = nn.SELU()
             
         if self.dynamic_merge_layers:
             self.layer_logits = nn.Linear(config.hidden_size, 1)
@@ -402,12 +397,15 @@ class FeedbackModel(tez.Model):
                 multiplier=1.1,
                 warmup_epoch=int(self.warmup_ratio * self.num_train_steps) ,
                 total_epoch=self.num_train_steps)
-            logging.info("finetune did not set sch")
+            
             return sch
         
         if self.crf_finetune:
             sch = StepLR(self.optimizer, self.num_train_steps // 4, gamma=0.2)
             logging.info("crf finetune set steplr sch")
+            return sch
+        
+        logging.info("finetune did not set sch")
         
 
     def loss(self, outputs, targets, attention_mask):
@@ -458,8 +456,8 @@ class FeedbackModel(tez.Model):
         else:
             sequence_output = transformer_out.last_hidden_state
             
-        
-        sequence_output = self.activate(sequence_output)
+        if self.activate:
+            sequence_output = self.activate(sequence_output)
             
         sequence_output = self.dropout(sequence_output)
         
@@ -653,9 +651,9 @@ if __name__ == "__main__":
         valid_df=valid_df,
         valid_samples=valid_samples,
         batch_size=args.valid_batch_size,
-        patience=5,
+        patience=4,
         mode="max",
-        delta=0.001,
+        delta=0.0005,
         save_weights_only=True,
         tokenizer=tokenizer,
         direct_output=args.decoder == "crf",

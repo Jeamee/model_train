@@ -647,6 +647,7 @@ class EarlyStopping(Callback):
             self.best_score = score
             self.best_epoch = self.epoch
             self.save_checkpoint(epoch_score, model)
+            self.save_best_checkpoint(model)
         elif score < self.best_score + self.delta:
             self.counter += 1
             logging.info(f"epoch {self.epoch} EarlyStopping counter: {self.counter} out of {self.patience}")
@@ -657,6 +658,7 @@ class EarlyStopping(Callback):
             self.best_score = score
             self.best_epoch = self.epoch
             self.save_checkpoint(epoch_score, model)
+            self.save_best_checkpoint(model)
             self.counter = 0
         
         self.epoch += 1
@@ -667,8 +669,9 @@ class EarlyStopping(Callback):
             logging.info(f"Validation score changed ({self.val_score} --> {epoch_score}). Saving model!")
             logging.info(f"Best performence is epoch {self.best_epoch}: {self.best_score}")
         self.val_score = epoch_score
-
-
+        
+    def save_best_checkpoint(self, model):
+        model.save(f"{self.model_path}_best", weights_only=self.save_weights_only)
 
 
 class GradualWarmupScheduler(_LRScheduler):
