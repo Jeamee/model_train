@@ -360,7 +360,7 @@ class FeedbackModel(tez.Model):
             else:
                 other_param_optimizer.append((name, para))
                 
-        crf_lf = 1e-5 if self.finetune else 1e-2
+        crf_lf = 1e-5 if self.finetune else self.transformer_learning_rate * 100
         
         self.optimizer_grouped_parameters = [
             {"params": [p for n, p in lonformer_param_optimizer if not any(nd in n for nd in no_decay) and p.requires_grad],
