@@ -105,6 +105,7 @@ def parse_args():
     parser.add_argument("--crf_finetune", action="store_true", required=False)
     parser.add_argument("--lower_freeze", type=float, default=0., required=False)
     parser.add_argument("--finetune_to_1536", action="store_true", required=False)
+    parser.add_argument("--gradient_ckpt", action="store_true", required=False)
     
     return parser.parse_args()
 
@@ -250,7 +251,8 @@ class FeedbackModel(tez.Model):
         finetune=False,
         lower_freeze=0.,
         crf_finetune=False,
-        mid_linear_dims=128
+        mid_linear_dims=128,
+        gradient_ckpt=False
     ):
         super().__init__()
         self.cur_step = 0
@@ -295,7 +297,12 @@ class FeedbackModel(tez.Model):
             config.update({"max_position_embeddings": 4096})
         
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
-
+        if gradient_ckpt:
+            self.transformer.gradient_checkpointing_enable()
+            logging.info("transformer gradient checkpointing: on")
+        else:
+            logging.info("transformer gradient checkpointing: off")
+            
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.dropout1 = nn.Dropout(0.1)
         self.dropout2 = nn.Dropout(0.2)
@@ -587,9 +594,9 @@ if __name__ == "__main__":
         tokenizer = DebertaV2TokenizerFast.from_pretrained(args.model)
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model)
-    if args.model != "allenai/longformer-large-4096":
-        tokenizer.add_tokens("\n\n", special_tokens=True)
-        logging.info("add return token to vocab")
+        
+    tokenizer.add_tokens("\n\n", special_tokens=True)
+    logging.info("add double return token to vocab")
         
     training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS, only_bigger_than_1024=args.finetune_to_1536)
     valid_samples = prepare_training_data(valid_df, tokenizer, args, num_jobs=NUM_JOBS)
@@ -628,12 +635,13 @@ if __name__ == "__main__":
         warmup_ratio=args.warmup_ratio,
         finetune=args.finetune,
         lower_freeze=args.lower_freeze,
-        crf_finetune=args.crf_finetune
+        crf_finetune=args.crf_finetune,
+        gradient_ckpt=args.gradient_ckpt
     )
     
-    if args.model != "allenai/longformer-large-4096":
-        model.transformer.resize_token_embeddings(len(tokenizer))
-        logging.info("model emb matrix resized")
+
+    model.transformer.resize_token_embeddings(len(tokenizer))
+    logging.info("model emb matrix resized")
     
     if args.ckpt:
         model.load(args.ckpt, weights_only=True, strict=False)
