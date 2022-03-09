@@ -52,6 +52,7 @@ from transformers import AdamW, AutoConfig, AutoModel, AutoTokenizer, get_cosine
 from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV2TokenizerFast
 #from torchcrf import CRF
 from pytorchcrf import CRF
+from torch.utils.checkpoint import checkpoint
 
 
 from utils import EarlyStopping, prepare_training_data, target_id_map, id_target_map, span_target_id_map, span_id_target_map, GradualWarmupScheduler, ReduceLROnPlateau, span_decode
