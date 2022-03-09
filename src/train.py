@@ -672,7 +672,7 @@ if __name__ == "__main__":
         device="cuda",
         epochs=args.epochs,
         callbacks=[tb_logger, es, freeze],
-        fp16=args.model != "uw-madison/yoso-4096",
+        fp16=False,
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
         clip_grad_norm=10.
