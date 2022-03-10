@@ -53,6 +53,7 @@ from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV
 #from torchcrf import CRF
 from pytorchcrf import CRF
 from torch.utils.checkpoint import checkpoint
+from tez.model.childtuningAdam import ChildTuningAdamW
 
 
 from utils import EarlyStopping, prepare_training_data, target_id_map, id_target_map, span_target_id_map, span_id_target_map, GradualWarmupScheduler, ReduceLROnPlateau, span_decode
@@ -107,6 +108,7 @@ def parse_args():
     parser.add_argument("--lower_freeze", type=float, default=0., required=False)
     parser.add_argument("--finetune_to_1536", action="store_true", required=False)
     parser.add_argument("--gradient_ckpt", action="store_true", required=False)
+    parser.add_argument("--child_tuning", type=str, default="", required=False)
     
     return parser.parse_args()
 
@@ -253,7 +255,8 @@ class FeedbackModel(tez.Model):
         lower_freeze=0.,
         crf_finetune=False,
         mid_linear_dims=128,
-        gradient_ckpt=False
+        gradient_ckpt=False,
+        child_tuning=""
     ):
         super().__init__()
         self.cur_step = 0
@@ -276,6 +279,7 @@ class FeedbackModel(tez.Model):
         self.lower_freeze = lower_freeze
         self.step_scheduler_after = "batch"
         self.crf_finetune = crf_finetune
+        self.child_tuning = child_tuning
 
         hidden_dropout_prob: float = 0.1
         layer_norm_eps: float = 1e-7
@@ -380,13 +384,26 @@ class FeedbackModel(tez.Model):
              "weight_decay": 0.0, 'lr': self.other_learning_rate},
         ]
         
-        opt = bnb.optim.AdamW8bit(self.optimizer_grouped_parameters, lr=self.transformer_learning_rate)
-    
-        for module in self.modules():
-            if isinstance(module, torch.nn.Embedding):
-                bnb.optim.GlobalOptimManager.get_instance().register_module_override(
-                    module, 'weight', {'optim_bits': 32}
-                )            
+        if self.child_tuning:
+            if self.child_tuning == "D":
+                mode = "ChildTuning-D"
+            else:
+                mode = "ChildTuning-F"
+        
+            opt = ChildTuningAdamW(
+                params=self.optimizer_grouped_parameters,
+                lr=self.transformer_learning_rate,
+                mode=mode,
+                reserve_p=0.3
+            )
+        else:
+            opt = bnb.optim.AdamW8bit(self.optimizer_grouped_parameters, lr=self.transformer_learning_rate)
+
+            for module in self.modules():
+                if isinstance(module, torch.nn.Embedding):
+                    bnb.optim.GlobalOptimManager.get_instance().register_module_override(
+                        module, 'weight', {'optim_bits': 32}
+                    )            
         #opt = AdamW(self.optimizer_grouped_parameters, lr=self.transformer_learning_rate)
         return opt
     
@@ -637,7 +654,8 @@ if __name__ == "__main__":
         finetune=args.finetune,
         lower_freeze=args.lower_freeze,
         crf_finetune=args.crf_finetune,
-        gradient_ckpt=args.gradient_ckpt
+        gradient_ckpt=args.gradient_ckpt,
+        child_tuning=args.child_tuning
     )
     
 
@@ -675,6 +693,7 @@ if __name__ == "__main__":
         fp16=False,
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
-        clip_grad_norm=10.
+        clip_grad_norm=10.,
+        child_tuning=args.child_tuning
     )
 
