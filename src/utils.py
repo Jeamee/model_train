@@ -515,6 +515,7 @@ class EarlyStopping(Callback):
 
     def on_epoch_end(self, model):
         model.eval()
+        model.save(f"{self.model_path}_epoch{self.epoch}", weights_only=self.save_weights_only)
         valid_dataset = FeedbackDatasetValid(self.valid_samples, 4096, self.tokenizer, bigbird_padding=self.bigbird_padding)
         collate = Collate(self.tokenizer)
 
@@ -529,7 +530,7 @@ class EarlyStopping(Callback):
         final_scores = []
         for output in preds_iter:
             if self.direct_output:
-                pred_class = np.squeeze(output["preds"])
+                pred_class = np.squeeze(output["preds"], axis=0)
                 pred_scrs = [[1] * len(_) for _ in pred_class]
             else:
                 pred_class = np.argmax(output["preds"], axis=2)
@@ -665,7 +666,6 @@ class EarlyStopping(Callback):
 
     def save_checkpoint(self, epoch_score, model):
         if epoch_score not in [-np.inf, np.inf, -np.nan, np.nan]:
-            model.save(f"{self.model_path}_epoch{self.epoch}", weights_only=self.save_weights_only)
             logging.info(f"Validation score changed ({self.val_score} --> {epoch_score}). Saving model!")
             logging.info(f"Best performence is epoch {self.best_epoch}: {self.best_score}")
         self.val_score = epoch_score
