@@ -109,6 +109,8 @@ def parse_args():
     parser.add_argument("--finetune_to_1536", action="store_true", required=False)
     parser.add_argument("--gradient_ckpt", action="store_true", required=False)
     parser.add_argument("--child_tuning", type=str, default="", required=False)
+    parser.add_argument("--fisher_load_ckpt", type=str, default="", required=False)
+    parser.add_argument("--fisher_save_ckpt", type=str, default="", required=False)
     
     return parser.parse_args()
 
@@ -608,6 +610,8 @@ if __name__ == "__main__":
 
     train_df = df[df["kfold"] != args.fold].reset_index(drop=True)
     valid_df = df[df["kfold"] == args.fold].reset_index(drop=True)
+    
+    
     if args.model in ["microsoft/deberta-v3-large", "microsoft/deberta-v2-xlarge"]:
         tokenizer = DebertaV2TokenizerFast.from_pretrained(args.model)
     else:
@@ -615,6 +619,8 @@ if __name__ == "__main__":
         
     tokenizer.add_tokens("\n\n", special_tokens=True)
     logging.info("add double return token to vocab")
+    
+    
         
     training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS, only_bigger_than_1024=args.finetune_to_1536)
     valid_samples = prepare_training_data(valid_df, tokenizer, args, num_jobs=NUM_JOBS)
@@ -627,6 +633,18 @@ if __name__ == "__main__":
         use4biaf=args.decoder == "biaffine",
         use4lf=args.model == "allenai/longformer-large-4096"
     )
+    
+    fisher_dataset = None
+    if not args.fisher_load_ckpt and args.fisher_save_ckpt:
+        fisher_samples = prepare_training_data(df, tokenizer, args, num_jobs=NUM_JOBS)[:32]
+        fisher_dataset = FeedbackDataset(
+            training_samples,
+            args.max_len,
+            tokenizer,
+            use4span=args.decoder == "span",
+            use4biaf=args.decoder == "biaffine",
+            use4lf=args.model == "allenai/longformer-large-4096"
+        )
 
     num_train_steps = int(len(train_dataset) / args.batch_size / args.accumulation_steps * args.epochs)
     
@@ -666,8 +684,6 @@ if __name__ == "__main__":
         model.load(args.ckpt, weights_only=True, strict=False)
         logging.info(f"{args.ckpt}")
         
-    
-    
     freeze = Freeze(epochs=args.freeze if not args.crf_finetune else 9999, method=args.freeze_method)
     tb_logger = tez.callbacks.TensorBoardLogger(log_dir=f"{args.output}/tb_logs/")
     es = EarlyStopping(
@@ -694,6 +710,9 @@ if __name__ == "__main__":
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
         clip_grad_norm=10.,
-        child_tuning=args.child_tuning
+        child_tuning=args.child_tuning,
+        fisher_dataset=fisher_dataset,
+        fisher_load_ckpt=args.fisher_load_ckpt,
+        fisher_save_ckpt=args.fisher_save_ckpt
     )
 
