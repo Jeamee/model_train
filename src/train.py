@@ -47,7 +47,7 @@ from copy import deepcopy
 from sklearn import metrics
 from torch.nn.parameter import Parameter
 from torch.nn import functional as F
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, LinearLR
 from transformers import AdamW, AutoConfig, AutoModel, AutoTokenizer, get_cosine_schedule_with_warmup
 from transformers.models.deberta_v2.tokenization_deberta_v2_fast import DebertaV2TokenizerFast
 #from torchcrf import CRF
@@ -424,6 +424,8 @@ class FeedbackModel(tez.Model):
                 total_epoch=self.num_train_steps)
             
             return sch
+        else:
+            sch = LinearLR(self.optimizer, total_iters=self.num_train_steps)
         
         if self.crf_finetune:
             sch = StepLR(self.optimizer, self.num_train_steps // 4, gamma=0.2)
@@ -710,7 +712,7 @@ if __name__ == "__main__":
         fp16=False,
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
-        clip_grad_norm=10.,
+        clip_grad_norm=1.,
         child_tuning=args.child_tuning,
         fisher_dataset=fisher_dataset,
         fisher_load_ckpt=args.fisher_load_ckpt,
