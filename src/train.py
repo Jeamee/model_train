@@ -78,7 +78,7 @@ def seed_everything(seed: int):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--fold", type=int, required=True)
-    parser.add_argument("--seed", type=43, required=True)
+    parser.add_argument("--seed", type=int, default=43, required=False)
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--trans_lr", type=float, required=True)
     parser.add_argument("--other_lr", type=float, required=True)
