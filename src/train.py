@@ -78,6 +78,7 @@ def seed_everything(seed: int):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--fold", type=int, required=True)
+    parser.add_argument("--seed", type=43, required=True)
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--trans_lr", type=float, required=True)
     parser.add_argument("--other_lr", type=float, required=True)
@@ -302,6 +303,8 @@ class FeedbackModel(tez.Model):
         if self.model_name in ["microsoft/deberta-v3-large", "microsoft/deberta-v2-xlarge", "uw-madison/yoso-4096", "funnel-transformer/xlarge"]:
             logging.info("set max_position_embeddings to 4096")
             config.update({"max_position_embeddings": 4096})
+        if self.model_name in "google/bigbird-roberta-large":
+            config.update({"attention_type": "original_full"})
         
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
         if gradient_ckpt:
@@ -603,7 +606,7 @@ def set_log(log_file):
 if __name__ == "__main__":
     NUM_JOBS = 15
     args = parse_args()
-    seed_everything(43)
+    seed_everything(args.seed)
     set_log(args.log)
     os.makedirs(args.output, exist_ok=True)
     df = pd.read_csv(os.path.join(args.input, "train_folds10.csv"))
@@ -619,7 +622,6 @@ if __name__ == "__main__":
         
     tokenizer.add_tokens("\n\n", special_tokens=True)
     logging.info("add double return token to vocab")
-    
     
         
     training_samples = prepare_training_data(train_df, tokenizer, args, num_jobs=NUM_JOBS, only_bigger_than_1024=args.finetune_to_1536)
@@ -697,7 +699,6 @@ if __name__ == "__main__":
         save_weights_only=True,
         tokenizer=tokenizer,
         direct_output=args.decoder == "crf",
-        bigbird_padding=args.model in ["google/bigbird-roberta-large", "patrickvonplaten/bigbird-roberta-large"]
     )
 
     model.fit(
