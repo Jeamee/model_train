@@ -112,6 +112,7 @@ def parse_args():
     parser.add_argument("--child_tuning", type=str, default="", required=False)
     parser.add_argument("--fisher_load_ckpt", type=str, default="", required=False)
     parser.add_argument("--fisher_save_ckpt", type=str, default="", required=False)
+    parser.add_argument("--clip_grad_norm", type=float, default=1.0, required=False)
     
     return parser.parse_args()
 
@@ -712,7 +713,7 @@ if __name__ == "__main__":
         fp16=False,
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
-        clip_grad_norm=1.,
+        clip_grad_norm=args.clip_grad_norm,
         child_tuning=args.child_tuning,
         fisher_dataset=fisher_dataset,
         fisher_load_ckpt=args.fisher_load_ckpt,
