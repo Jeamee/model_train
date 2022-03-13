@@ -451,7 +451,7 @@ class Freeze(Callback):
                     for param in params:
                         param.requires_grad = False
                 else:
-                    params["lr"] = 1e-8
+                    params["lr"] = 4e-7
         
     def on_epoch_end(self, model):
         if self.thre == 0:

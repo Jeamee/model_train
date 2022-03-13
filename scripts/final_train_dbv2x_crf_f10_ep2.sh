@@ -1,5 +1,5 @@
 set -Eeuox
-EPOCH=1
+EPOCH=2
 DATE=0312
 DECODER=crf
 BS=16

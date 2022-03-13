@@ -552,8 +552,12 @@ class FeedbackModel(tez.Model):
                 loss = (loss1 + loss2 + loss3 + loss4 + loss5) / 5
             elif self.decoder == "crf":
                 targets = targets * mask
-                logits = (logits1 + logits2 + logits3 + logits4 + logits5) / 5
-                loss = -1. * self.crf(emissions=logits, tags=targets, mask=mask.byte(), reduction='mean')
+                loss1 = -1. * self.crf(emissions=logits1, tags=targets, mask=mask.byte(), reduction='mean')
+                loss2 = -1. * self.crf(emissions=logits2, tags=targets, mask=mask.byte(), reduction='mean')
+                loss3 = -1. * self.crf(emissions=logits3, tags=targets, mask=mask.byte(), reduction='mean')
+                loss4 = -1. * self.crf(emissions=logits4, tags=targets, mask=mask.byte(), reduction='mean')
+                loss5 = -1. * self.crf(emissions=logits5, tags=targets, mask=mask.byte(), reduction='mean')
+                loss = (loss1 + loss2 + loss3 + loss4 + loss5) / 5
             elif self.decoder == "span":
                 targets, start_targets, end_targets = targets
                 
@@ -612,7 +616,7 @@ if __name__ == "__main__":
     seed_everything(args.seed)
     set_log(args.log)
     os.makedirs(args.output, exist_ok=True)
-    df = pd.read_csv(os.path.join(args.input, "train_folds10.csv"))
+    df = pd.read_csv(os.path.join(args.input, "train_folds.csv"))
 
     train_df = df[df["kfold"] != args.fold].reset_index(drop=True)
     valid_df = df[df["kfold"] == args.fold].reset_index(drop=True)
@@ -696,7 +700,7 @@ if __name__ == "__main__":
         valid_df=valid_df,
         valid_samples=valid_samples,
         batch_size=args.valid_batch_size,
-        patience=4,
+        patience=1,
         mode="max",
         delta=0.0005,
         save_weights_only=True,
