@@ -698,7 +698,7 @@ if __name__ == "__main__":
         valid_df=valid_df,
         valid_samples=valid_samples,
         batch_size=args.valid_batch_size,
-        patience=1,
+        patience=5,
         mode="max",
         delta=0.0005,
         save_weights_only=True,
