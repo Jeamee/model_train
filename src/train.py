@@ -552,12 +552,10 @@ class FeedbackModel(tez.Model):
                 loss = (loss1 + loss2 + loss3 + loss4 + loss5) / 5
             elif self.decoder == "crf":
                 targets = targets * mask
-                loss1 = -1. * self.crf(emissions=logits1, tags=targets, mask=mask.byte(), reduction='mean')
-                loss2 = -1. * self.crf(emissions=logits2, tags=targets, mask=mask.byte(), reduction='mean')
-                loss3 = -1. * self.crf(emissions=logits3, tags=targets, mask=mask.byte(), reduction='mean')
-                loss4 = -1. * self.crf(emissions=logits4, tags=targets, mask=mask.byte(), reduction='mean')
-                loss5 = -1. * self.crf(emissions=logits5, tags=targets, mask=mask.byte(), reduction='mean')
-                loss = (loss1 + loss2 + loss3 + loss4 + loss5) / 5
+                gather_logits = torch.cat([logits1, logits2, logits3, logits4, logits5], dim=0).cuda()
+                gather_targets = torch.cat([targets] * 5, dim=0)
+                gather_mask = torch.cat([mask] * 5, dim=0)
+                loss = -1. * self.crf(emissions=gather_logits, tags=gather_targets, mask=gather_mask.byte(), reduction='mean')
             elif self.decoder == "span":
                 targets, start_targets, end_targets = targets
                 
