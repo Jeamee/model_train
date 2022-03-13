@@ -714,7 +714,7 @@ if __name__ == "__main__":
         device="cuda",
         epochs=args.epochs,
         callbacks=[tb_logger, es, freeze],
-        fp16=False,
+        fp16=True,
         attack=args.attack,
         accumulation_steps=args.accumulation_steps,
         clip_grad_norm=args.clip_grad_norm,
