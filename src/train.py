@@ -90,6 +90,7 @@ def parse_args():
     parser.add_argument("--step_scheduler_metric", default="train_f1", type=str, required=False)
     parser.add_argument("--output", type=str, default="../model", required=False)
     parser.add_argument("--input", type=str, default="", required=True)
+    parser.add_argument("--input_csv", type=str, default="", required=True)
     parser.add_argument("--ckpt", type=str, default="", required=False)
     parser.add_argument("--max_len", type=int, default=1024, required=False)
     parser.add_argument("--batch_size", type=int, default=8, required=False)
@@ -614,7 +615,7 @@ if __name__ == "__main__":
     seed_everything(args.seed)
     set_log(args.log)
     os.makedirs(args.output, exist_ok=True)
-    df = pd.read_csv(os.path.join(args.input, "train_folds.csv"))
+    df = pd.read_csv(args.input_csv)
 
     train_df = df[df["kfold"] != args.fold].reset_index(drop=True)
     valid_df = df[df["kfold"] == args.fold].reset_index(drop=True)
